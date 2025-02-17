@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { persist } from "zustand/middleware";
 
 import { AppwriteException, ID, Models } from "appwrite";
 import { account } from "@/models/client/config";
@@ -16,7 +16,7 @@ interface IAuthStore {
   hydrated: boolean;
 
   setHydrated(): void;
-  verifySession(): Promise<void>;
+  verfiySession(): Promise<void>;
   login(
     email: string,
     password: string
@@ -24,7 +24,7 @@ interface IAuthStore {
     success: boolean;
     error?: AppwriteException | null;
   }>;
-  register(
+  createAccount(
     name: string,
     email: string,
     password: string
@@ -33,7 +33,6 @@ interface IAuthStore {
     error?: AppwriteException | null;
   }>;
   logout(): Promise<void>;
-  updatePrefs(prefs: UserPrefs): Promise<void>;
 }
 
 export const useAuthStore = create<IAuthStore>()(
@@ -48,7 +47,7 @@ export const useAuthStore = create<IAuthStore>()(
         set({ hydrated: true });
       },
 
-      async verifySession() {
+      async verfiySession() {
         try {
           const session = await account.getSession("current");
           set({ session });
@@ -57,7 +56,7 @@ export const useAuthStore = create<IAuthStore>()(
         }
       },
 
-      async login(email, password) {
+      async login(email: string, password: string) {
         try {
           const session = await account.createEmailPasswordSession(
             email,
@@ -71,7 +70,9 @@ export const useAuthStore = create<IAuthStore>()(
             await account.updatePrefs<UserPrefs>({
               reputation: 0,
             });
+
           set({ session, user, jwt });
+
           return { success: true };
         } catch (error) {
           console.log(error);
@@ -82,23 +83,27 @@ export const useAuthStore = create<IAuthStore>()(
         }
       },
 
-      async register(name: string, email: string, password: string) {
+      async createAccount(name: string, email: string, password: string) {
         try {
-          const something = await account.create(ID.unique(), email, password, name)
-          return {
-            success: true,
-          }
-        }
-        catch (error) {
+          await account.create(ID.unique(), email, password, name);
+          return { success: true };
+        } catch (error) {
           console.log(error);
           return {
             success: false,
             error: error instanceof AppwriteException ? error : null,
           };
         }
-      }
+      },
 
-      async logout() {},
+      async logout() {
+        try {
+          await account.deleteSessions();
+          set({ session: null, jwt: null, user: null });
+        } catch (error) {
+          console.log(error);
+        }
+      },
     })),
     {
       name: "auth",
